@@ -21,15 +21,13 @@ export default {
       
       const gistData = await response.json();
       
-      // Replace 'BookMark' with the actual filename of your exported bookmark JSON in the Gist
-      const fileData = Object.values(gistData.files)[0]; // Fallback to the first file if names vary
+      const fileData = Object.values(gistData.files)[0];
       
       if (!fileData) {
         return new Response("No files found in the specified Gist.", { status: 404 });
       }
 
       const bookmarksObj = JSON.parse(fileData.content);
-      // Compatible with native chrome export or plugin formats
       const rootBookmarks = bookmarksObj.bookmarks || bookmarksObj.roots?.bookmark_bar?.children || [];
 
       const bookmarksJsonStr = JSON.stringify(rootBookmarks);
@@ -84,7 +82,8 @@ export default {
   <div class="max-w-[90rem] mx-auto mt-6 px-4 sm:px-6">
     <header class="mb-10 text-center">
       <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight" data-i18n="headerTitle">My Private Bookmarks</h1>
-      <p class="mt-4 text-sm md:text-base font-medium text-slate-500 dark:text-slate-400" data-i18n="headerSubtitle">Securely synced from Private Gist &middot; Zero Server Cost</p>
+      <p id="currentDate" class="mt-4 text-base md:text-lg font-bold text-blue-600 dark:text-blue-400 tracking-wide"></p>
+      <p class="mt-2 text-sm md:text-base font-medium text-slate-500 dark:text-slate-400" data-i18n="headerSubtitle">Securely synced from Private Gist &middot; Zero Server Cost</p>
     </header>
 
     <div class="max-w-3xl mx-auto mb-12">
@@ -103,8 +102,8 @@ export default {
     </div>
     
     <div class="flex flex-col lg:flex-row gap-8 items-start">
-      <aside class="hidden lg:block w-64 shrink-0 sticky top-24">
-        <div class="bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl rounded-3xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm" id="desktop-sidebar">
+      <aside class="hidden lg:block shrink-0 sticky top-24 z-40">
+        <div class="group bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl rounded-3xl border border-slate-200 dark:border-slate-700 p-3 shadow-sm w-16 hover:w-64 transition-all duration-300 overflow-hidden flex flex-col items-start" id="desktop-sidebar">
         </div>
       </aside>
 
@@ -121,6 +120,11 @@ export default {
     </footer>
   </div>
 
+  <button id="backToTop" class="fixed bottom-8 right-8 z-50 w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg transition-all duration-300 translate-y-20 opacity-0 flex flex-col items-center justify-center font-bold text-xs" onclick="window.scrollTo(0,0)">
+    <span class="material-symbols-outlined text-xl leading-none -mb-1">arrow_upward</span>
+    <span id="bttText" class="leading-none mt-1">TOP</span>
+  </button>
+
   <script>
     const bookmarksData = \${bookmarksJsonStr};
 
@@ -136,7 +140,8 @@ export default {
         folder_MenuFolder: "主菜单",
         folder_UnfiledFolder: "未分类收集",
         folder_MobileFolder: "移动端藏品",
-        defaultFolder: "收藏夹"
+        defaultFolder: "收藏夹",
+        btt: "顶"
       },
       en: {
         pageTitle: "StarNav Bookmarks",
@@ -149,7 +154,8 @@ export default {
         folder_MenuFolder: "Bookmarks Menu",
         folder_UnfiledFolder: "Other Bookmarks",
         folder_MobileFolder: "Mobile Bookmarks",
-        defaultFolder: "Folder"
+        defaultFolder: "Folder",
+        btt: "TOP"
       }
     };
 
@@ -161,7 +167,19 @@ export default {
         if (i18n[currentLang][key]) el.innerText = i18n[currentLang][key];
       });
       document.getElementById('searchInput').placeholder = i18n[currentLang].searchPlaceholder;
+      document.getElementById('bttText').innerText = i18n[currentLang].btt;
+      updateDate();
       renderBookmarks();
+    }
+
+    function updateDate() {
+      const dateEl = document.getElementById('currentDate');
+      const d = new Date();
+      if (currentLang === 'zh') {
+        dateEl.innerText = d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日';
+      } else {
+        dateEl.innerText = d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear();
+      }
     }
 
     document.getElementById('langToggle').addEventListener('click', () => {
@@ -191,6 +209,15 @@ export default {
       applyTheme();
     });
 
+    window.addEventListener('scroll', () => {
+      const btt = document.getElementById('backToTop');
+      if (window.scrollY > 300) {
+        btt.classList.remove('translate-y-20', 'opacity-0');
+      } else {
+        btt.classList.add('translate-y-20', 'opacity-0');
+      }
+    });
+
     function escapeHtml(unsafe) {
       return (unsafe || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
@@ -211,7 +238,7 @@ export default {
         
         return \\\`
           <a href="\\\${safeUrl}" target="_blank" title="\\\${tooltip}" data-title="\\\${safeTitle.toLowerCase()}" data-url="\\\${safeUrl.toLowerCase()}"
-             class="bookmark-item flex items-center p-3 bg-white dark:bg-slate-800/80 rounded-2xl shadow-sm hover:shadow-md hover:-translate-y-1 hover:border-blue-400 dark:hover:border-blue-500 transition-all border border-slate-100 dark:border-slate-700 no-underline text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 group">
+             class="bookmark-item flex items-center p-3 bg-white dark:bg-slate-800/80 rounded-2xl shadow-sm hover:shadow-md hover:-translate-y-1 hover:border-blue-400 dark:hover:border-blue-500 transition-all border border-slate-100 dark:border-slate-700 no-underline text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 relative">
             <img src="\\\${faviconUrl}" class="w-6 h-6 mr-3 rounded-md bg-white flex-shrink-0 object-contain shadow-sm" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjY2JjYmNiIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiPjwvY2lyY2xlPjxsGluZSB4MT0iMiIgeTE9IjEyIiB4Mj0iMjIiIHkyPSIxMiI+PC9saW5lPjxwYXRoIGQ9Ik0xMiAyYTE1LjMgMTUuMyAwIDAgMSA0IDEwIDE1LjMgMTUuMyAwIDAgMS00IDEwIDE1LjMgMTUuMyAwIDAgMS00LTEwIDE1LjMgMTUuMyAwIDAgMSA0LTEweiI+PC9wYXRoPjwvc3ZnPg=='" />
             <span class="truncate text-[15px] font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400">\\\${safeTitle}</span>
           </a>
@@ -258,9 +285,9 @@ export default {
           let folderId = 'folder-' + index;
 
           sidebarHtml += \\\`
-            <a href="#\\\${folderId}" class="flex items-center gap-3 p-3 rounded-2xl text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm hover:text-blue-600 dark:hover:text-blue-400 transition-all mb-2 font-medium border border-transparent hover:border-slate-100 dark:hover:border-slate-600">
-              <span class="\\\${iconClass} \\\${iconColor} text-xl">\\\${icon}</span>
-              <span class="truncate">\\\${escapeHtml(folderName)}</span>
+            <a href="#\\\${folderId}" title="\\\${escapeHtml(folderName)}" class="flex items-center w-full gap-3 p-2 rounded-2xl text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm hover:text-blue-600 dark:hover:text-blue-400 transition-all mb-2 font-medium border border-transparent hover:border-slate-100 dark:hover:border-slate-600">
+              <span class="\\\${iconClass} \\\${iconColor} text-2xl flex-shrink-0 flex items-center justify-center w-6 h-6">\\\${icon}</span>
+              <span class="truncate opacity-0 group-hover:opacity-100 transition-opacity duration-300">\\\${escapeHtml(folderName)}</span>
             </a>
           \\\`;
 
@@ -286,7 +313,12 @@ export default {
       });
 
       container.innerHTML = html;
-      dSidebar.innerHTML = \\\`<div class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-5 ml-2" data-i18n="sidebarNav">\\\${i18n[currentLang].sidebarNav}</div>\\\` + sidebarHtml;
+      dSidebar.innerHTML = \\\`
+        <div class="flex items-center w-full mb-6 ml-2 overflow-hidden mt-2" title="\\\${i18n[currentLang].sidebarNav}">
+          <span class="material-symbols-outlined text-slate-400 dark:text-slate-500 text-xl flex-shrink-0">format_list_bulleted</span>
+          <span class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap" data-i18n="sidebarNav">\\\${i18n[currentLang].sidebarNav}</span>
+        </div>
+      \\\` + sidebarHtml;
       mSidebar.innerHTML = mobileSidebarHtml;
     }
 
