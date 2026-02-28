@@ -1,0 +1,12 @@
+{
+  "name": "starnav",
+  "version": "1.0.0",
+  "description": "StarNav Bookmark Navigation",
+  "main": "worker.js",
+  "scripts": {
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
