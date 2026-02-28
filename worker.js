@@ -237,19 +237,19 @@ export default {
         const tooltip = safeTitle + "\\n" + safeUrl;
         
         return \`
-          <a href="\\\${safeUrl}" target="_blank" title="\\\${tooltip}" data-title="\\\${safeTitle.toLowerCase()}" data-url="\\\${safeUrl.toLowerCase()}"
+          <a href="\\${safeUrl}" target="_blank" title="\\${tooltip}" data-title="\\${safeTitle.toLowerCase()}" data-url="\\${safeUrl.toLowerCase()}"
              class="bookmark-item flex items-center p-3 bg-white dark:bg-slate-800/80 rounded-2xl shadow-sm hover:shadow-md hover:-translate-y-1 hover:border-blue-400 dark:hover:border-blue-500 transition-all border border-slate-100 dark:border-slate-700 no-underline text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 relative">
-            <img src="\\\${faviconUrl}" class="w-6 h-6 mr-3 rounded-md bg-white flex-shrink-0 object-contain shadow-sm" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjY2JjYmNiIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiPjwvY2lyY2xlPjxsGluZSB4MT0iMiIgeTE9IjEyIiB4Mj0iMjIiIHkyPSIxMiI+PC9saW5lPjxwYXRoIGQ9Ik0xMiAyYTE1LjMgMTUuMyAwIDAgMSA0IDEwIDE1LjMgMTUuMyAwIDAgMS00IDEwIDE1LjMgMTUuMyAwIDAgMS00LTEwIDE1LjMgMTUuMyAwIDAgMSA0LTEweiI+PC9wYXRoPjwvc3ZnPg=='" />
-            <span class="truncate text-[15px] font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400">\\\${safeTitle}</span>
+            <img src="\\${faviconUrl}" class="w-6 h-6 mr-3 rounded-md bg-white flex-shrink-0 object-contain shadow-sm" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjY2JjYmNiIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiPjwvY2lyY2xlPjxsGluZSB4MT0iMiIgeTE9IjEyIiB4Mj0iMjIiIHkyPSIxMiI+PC9saW5lPjxwYXRoIGQ9Ik0xMiAyYTE1LjMgMTUuMyAwIDAgMSA0IDEwIDE1LjMgMTUuMyAwIDAgMS00IDEwIDE1LjMgMTUuMyAwIDAgMS00LTEwIDE1LjMgMTUuMyAwIDAgMSA0LTEweiI+PC9wYXRoPjwvc3ZnPg=='" />
+            <span class="truncate text-[15px] font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400">\\${safeTitle}</span>
           </a>
         \`;
       } 
       else if (children && children.length > 0) {
         return \`
           <div class="nested-folder col-span-full mt-2 mb-1">
-            <h3 class="text-sm font-bold text-slate-400 dark:text-slate-500 mb-3 ml-1 uppercase tracking-wider">\\\${escapeHtml(title)}</h3>
+            <h3 class="text-sm font-bold text-slate-400 dark:text-slate-500 mb-3 ml-1 uppercase tracking-wider">\\${escapeHtml(title)}</h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-              \\\${children.map(renderNode).join('')}
+              \\${children.map(renderNode).join('')}
             </div>
           </div>
         \`;
@@ -285,27 +285,27 @@ export default {
           let folderId = 'folder-' + index;
 
           sidebarHtml += \`
-            <a href="#\\\${folderId}" title="\\\${escapeHtml(folderName)}" class="flex items-center w-full gap-3 p-2 rounded-2xl text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm hover:text-blue-600 dark:hover:text-blue-400 transition-all mb-2 font-medium border border-transparent hover:border-slate-100 dark:hover:border-slate-600">
-              <span class="\\\${iconClass} \\\${iconColor} text-2xl flex-shrink-0 flex items-center justify-center w-6 h-6">\\\${icon}</span>
-              <span class="truncate opacity-0 group-hover:opacity-100 transition-opacity duration-300">\\\${escapeHtml(folderName)}</span>
+            <a href="#\\${folderId}" title="\\${escapeHtml(folderName)}" class="flex items-center w-full gap-3 p-2 rounded-2xl text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm hover:text-blue-600 dark:hover:text-blue-400 transition-all mb-2 font-medium border border-transparent hover:border-slate-100 dark:hover:border-slate-600">
+              <span class="\\${iconClass} \\${iconColor} text-2xl flex-shrink-0 flex items-center justify-center w-6 h-6">\\${icon}</span>
+              <span class="truncate opacity-0 group-hover:opacity-100 transition-opacity duration-300">\\${escapeHtml(folderName)}</span>
             </a>
           \`;
 
           mobileSidebarHtml += \`
-            <a href="#\\\${folderId}" class="flex-shrink-0 flex items-center gap-2 py-2.5 px-5 bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-200 shadow-sm whitespace-nowrap active:scale-95 transition-transform">
-              <span class="\\\${iconClass} \\\${iconColor} text-base">\\\${icon}</span>
-              \\\${escapeHtml(folderName)}
+            <a href="#\\${folderId}" class="flex-shrink-0 flex items-center gap-2 py-2.5 px-5 bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-200 shadow-sm whitespace-nowrap active:scale-95 transition-transform">
+              <span class="\\${iconClass} \\${iconColor} text-base">\\${icon}</span>
+              \\${escapeHtml(folderName)}
             </a>
           \`;
 
           html += \`
-            <div id="\\\${folderId}" class="folder-block bg-slate-100/50 dark:bg-slate-800/20 p-6 sm:p-8 rounded-3xl border border-slate-200/60 dark:border-slate-700/50 shadow-sm scroll-mt-24">
+            <div id="\\${folderId}" class="folder-block bg-slate-100/50 dark:bg-slate-800/20 p-6 sm:p-8 rounded-3xl border border-slate-200/60 dark:border-slate-700/50 shadow-sm scroll-mt-24">
               <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6 pb-4 border-b border-slate-200 dark:border-slate-700 flex items-center">
-                <span class="\\\${iconClass} mr-3 text-3xl \\\${iconColor}">\\\${icon}</span>
-                \\\${escapeHtml(folderName)}
+                <span class="\\${iconClass} mr-3 text-3xl \\${iconColor}">\\${icon}</span>
+                \\${escapeHtml(folderName)}
               </h2>
               <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-                \\\${children.map(renderNode).join('')}
+                \\${children.map(renderNode).join('')}
               </div>
             </div>
           \`;
@@ -314,9 +314,9 @@ export default {
 
       container.innerHTML = html;
       dSidebar.innerHTML = \`
-        <div class="flex items-center w-full mb-6 ml-2 overflow-hidden mt-2" title="\\\${i18n[currentLang].sidebarNav}">
+        <div class="flex items-center w-full mb-6 ml-2 overflow-hidden mt-2" title="\\${i18n[currentLang].sidebarNav}">
           <span class="material-symbols-outlined text-slate-400 dark:text-slate-500 text-xl flex-shrink-0">format_list_bulleted</span>
-          <span class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap" data-i18n="sidebarNav">\\\${i18n[currentLang].sidebarNav}</span>
+          <span class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap" data-i18n="sidebarNav">\\${i18n[currentLang].sidebarNav}</span>
         </div>
       \` + sidebarHtml;
       mSidebar.innerHTML = mobileSidebarHtml;
