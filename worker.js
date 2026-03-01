@@ -8,15 +8,15 @@ export default {
     }
 
     try {
-      const response = await fetch(`https://api.github.com/gists/\${GIST_ID}`, {
+      const response = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
         headers: {
           'User-Agent': 'Cloudflare-Worker-Nav',
-          'Authorization': `Bearer \${GITHUB_TOKEN}`
+          'Authorization': `Bearer ${GITHUB_TOKEN}`
         }
       });
 
       if (!response.ok) {
-        return new Response(`Error fetching Gist: HTTP \${response.status}`, { status: 500 });
+        return new Response(`Error fetching Gist: HTTP ${response.status}`, { status: 500 });
       }
       
       const gistData = await response.json();
