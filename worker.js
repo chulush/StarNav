@@ -371,7 +371,7 @@ export default {
       return new Response(html, {
         headers: { 
           'Content-Type': 'text/html;charset=UTF-8',
-          'Cache-Control': 'public, max-age=600'
+          'Cache-Control': 'public, max-age=86400'
         }
       });
       
