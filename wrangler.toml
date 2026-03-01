@@ -6,6 +6,6 @@ compatibility_date = "2024-02-28"
 enabled = true
 
 # The variables below should be configured via the Cloudflare Dashboard
-# [vars]
-# GIST_ID = "..."
+[vars]
+GIST_ID = "2bc86de63a406d068b6b812cd47d35e3"
 # GITHUB_TOKEN = "..."
