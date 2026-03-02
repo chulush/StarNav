@@ -18,11 +18,11 @@ export default {
       if (!response.ok) {
         return new Response(`Error fetching Gist: HTTP ${response.status}`, { status: 500 });
       }
-      
+
       const gistData = await response.json();
-      
+
       const fileData = Object.values(gistData.files)[0];
-      
+
       if (!fileData) {
         return new Response("No files found in the specified Gist.", { status: 404 });
       }
@@ -31,6 +31,9 @@ export default {
       const rootBookmarks = bookmarksObj.bookmarks || bookmarksObj.roots?.bookmark_bar?.children || [];
 
       const bookmarksJsonStr = JSON.stringify(rootBookmarks);
+
+      // Corrected SVG fallback (fixed broken base64: 'lGine' -> 'line')
+      const FALLBACK_ICON = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOTRhM2I4IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiLz48bGluZSB4MT0iMiIgeTE9IjEyIiB4Mj0iMjIiIHkyPSIxMiIvPjxwYXRoIGQ9Ik0xMiAyYTE1LjMgMTUuMyAwIDAgMSA0IDEwIDE1LjMgMTUuMyAwIDAgMS00IDEwIDE1LjMgMTUuMyAwIDAgMS00LTEwIDE1LjMgMTUuMyAwIDAgMSA0LTEweiIvPjwvc3ZnPg==';
 
       const html = `
 <!DOCTYPE html>
@@ -58,6 +61,36 @@ export default {
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     
     .glass-nav { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+
+    /* Performance: use specific transitions instead of transition-all */
+    .bookmark-item {
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+      will-change: transform;
+      contain: layout style paint;
+    }
+    .bookmark-item:hover {
+      transform: translateY(-4px);
+    }
+
+    /* Fade-in animation for lazy-loaded folder blocks */
+    .folder-block {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+    .folder-block.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Favicon placeholder while loading */
+    .favicon-img {
+      background: #f1f5f9;
+      transition: opacity 0.3s ease;
+    }
+    .dark .favicon-img {
+      background: #334155;
+    }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 min-h-screen pt-20 pb-10">
@@ -80,20 +113,20 @@ export default {
   </nav>
 
   <div class="max-w-[90rem] mx-auto mt-6 px-4 sm:px-6">
-    <header class="mb-10 text-center">
+    /header class="mb-10 text-center">
       <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight" data-i18n="headerTitle">My Private Bookmarks</h1>
       <p id="currentDate" class="mt-4 text-base md:text-lg font-bold text-blue-600 dark:text-blue-400 tracking-wide"></p>
       <p class="mt-2 text-sm md:text-base font-medium text-slate-500 dark:text-slate-400" data-i18n="headerSubtitle">Securely synced from Private Gist &middot; Zero Server Cost</p>
     </header>
 
     <div class="max-w-3xl mx-auto mb-12">
-      <form id="searchForm" class="flex items-center bg-white dark:bg-slate-800 rounded-full shadow-md p-1.5 pl-4 border border-slate-200 dark:border-slate-700 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all">
+      <form id="searchForm" class="flex items-center bg-white dark:bg-slate-800 rounded-full shadow-md p-1.5 pl-4 border border-slate-200 dark:border-slate-700 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-shadow transition-colors">
         <select id="searchEngine" class="bg-transparent border-none text-slate-600 dark:text-slate-300 py-2 outline-none font-bold cursor-pointer text-sm sm:text-base">
           <option value="google">Google</option>
           <option value="bing">Bing</option>
           <option value="github">GitHub</option>
         </select>
-        <div class="h-6 w-px bg-slate-300 dark:bg-slate-600 mx-3"></div>
+        <div class="h-6 w-px bg-slate-300 dark:bg-slate-600 mx-3"></div>////////////
         <input type="text" id="searchInput" class="flex-1 bg-transparent border-none text-slate-800 dark:text-slate-200 py-3 outline-none w-full text-sm sm:text-base" autocomplete="off" />
         <button type="submit" class="p-3 ml-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center transition-transform hover:scale-105 shadow-md">
           <span class="material-symbols-outlined font-bold">search</span>
@@ -103,7 +136,7 @@ export default {
     
     <div class="flex flex-col lg:flex-row gap-8 items-start">
       <aside class="hidden lg:block shrink-0 sticky top-24 z-40">
-        <div class="group bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl rounded-3xl border border-slate-200 dark:border-slate-700 p-3 shadow-sm w-16 hover:w-64 transition-all duration-300 overflow-hidden flex flex-col items-start" id="desktop-sidebar">
+        <div class="group bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl rounded-3xl border border-slate-200 dark:border-slate-700 p-3 shadow-sm w-16 hover:w-64 transition-[width] duration-300 overflow-hidden flex flex-col items-start" id="desktop-sidebar">
         </div>
       </aside>
 
@@ -120,12 +153,13 @@ export default {
     </footer>
   </div>
 
-  <button id="backToTop" class="fixed bottom-8 right-8 z-50 w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg transition-all duration-300 translate-y-20 opacity-0 flex flex-col items-center justify-center font-bold text-xs" onclick="window.scrollTo(0,0)">
+  <button id="backToTop" class="fixed bottom-8 right-8 z-50 w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg transition-[transform,opacity] duration-300 translate-y-20 opacity-0 flex flex-col items-center justify-center font-bold text-xs" onclick="window.scrollTo(0,0)">
     <span class="material-symbols-outlined text-xl leading-none -mb-1">arrow_upward</span>
     <span id="bttText" class="leading-none mt-1">TOP</span>
   </button>
 
   <script>
+    const FALLBACK_ICON = '${FALLBACK_ICON}';
     const bookmarksData = ${bookmarksJsonStr};
 
     const i18n = {
@@ -162,8 +196,8 @@ export default {
     let currentLang = localStorage.getItem('lang') || (navigator.language.startsWith('zh') ? 'zh' : 'en');
     
     function applyI18n() {
-      document.querySelectorAll('[data-i18n]').forEach(el => {
-        const key = el.getAttribute('data-i18n');
+      document.querySelectorAll('[data-i18n]').forEach(function(el) {
+        var key = el.getAttribute('data-i18n');
         if (i18n[currentLang][key]) el.innerText = i18n[currentLang][key];
       });
       document.getElementById('searchInput').placeholder = i18n[currentLang].searchPlaceholder;
@@ -173,8 +207,8 @@ export default {
     }
 
     function updateDate() {
-      const dateEl = document.getElementById('currentDate');
-      const d = new Date();
+      var dateEl = document.getElementById('currentDate');
+      var d = new Date();
       if (currentLang === 'zh') {
         dateEl.innerText = d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日';
       } else {
@@ -182,15 +216,15 @@ export default {
       }
     }
 
-    document.getElementById('langToggle').addEventListener('click', () => {
+    document.getElementById('langToggle').addEventListener('click', function() {
       currentLang = currentLang === 'zh' ? 'en' : 'zh';
       localStorage.setItem('lang', currentLang);
       applyI18n();
     });
 
-    const htmlElement = document.documentElement;
-    const themeIcon = document.getElementById('themeIcon');
-    let currentTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    var htmlElement = document.documentElement;
+    var themeIcon = document.getElementById('themeIcon');
+    var currentTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     
     function applyTheme() {
       if (currentTheme === 'dark') {
@@ -203,18 +237,26 @@ export default {
     }
     
     applyTheme();
-    document.getElementById('themeToggle').addEventListener('click', () => {
+    document.getElementById('themeToggle').addEventListener('click', function() {
       currentTheme = currentTheme === 'light' ? 'dark' : 'light';
       localStorage.setItem('theme', currentTheme);
       applyTheme();
     });
 
-    window.addEventListener('scroll', () => {
-      const btt = document.getElementById('backToTop');
-      if (window.scrollY > 300) {
-        btt.classList.remove('translate-y-20', 'opacity-0');
-      } else {
-        btt.classList.add('translate-y-20', 'opacity-0');
+    // Performance: throttle scroll handler with requestAnimationFrame
+    var scrollTicking = false;
+    window.addEventListener('scroll', function() {
+      if (!scrollTicking) {
+        requestAnimationFrame(function() {
+          var btt = document.getElementById('backToTop');
+          if (window.scrollY > 300) {
+            btt.classList.remove('translate-y-20', 'opacity-0');
+          } else {
+            btt.classList.add('translate-y-20', 'opacity-0');
+          }
+          scrollTicking = false;
+        });
+        scrollTicking = true;
       }
     });
 
@@ -222,140 +264,163 @@ export default {
       return (unsafe || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
 
+    // Performance: handle favicon errors without retriggering — set fallback once
+    function handleFaviconError(img) {
+      img.onerror = null; // prevent infinite error loop
+      img.src = FALLBACK_ICON;
+    }
+
     function renderNode(node) {
-      const url = node.url || node.url_string;
-      const title = node.title || node.name;
-      const children = node.children || node.folder_children;
+      var url = node.url || node.url_string;
+      var title = node.title || node.name;
+      var children = node.children || node.folder_children;
       
       if (url) {
-        let hostname = 'unknown';
+        var hostname = 'unknown';
         try { hostname = new URL(url).hostname; } catch(e) {}
-        const faviconUrl = "https://www.google.com/s2/favicons?domain=" + hostname + "&sz=32";
-        const safeTitle = escapeHtml(title);
-        const safeUrl = escapeHtml(url);
+        var faviconUrl = "https://www.google.com/s2/favicons?domain=" + hostname + "&sz=32";
+        var safeTitle = escapeHtml(title);
+        var safeUrl = escapeHtml(url);
         
-        const tooltip = safeTitle + "\\n" + safeUrl;
+        var tooltip = safeTitle + "\\n" + safeUrl;
         
-        return \`<a href="\${safeUrl}" target="_blank" title="\${tooltip}" data-title="\${safeTitle.toLowerCase()}" data-url="\${safeUrl.toLowerCase()}"
-             class="bookmark-item flex items-center p-3 bg-white dark:bg-slate-800/80 rounded-2xl shadow-sm hover:shadow-md hover:-translate-y-1 hover:border-blue-400 dark:hover:border-blue-500 transition-all border border-slate-100 dark:border-slate-700 no-underline text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 relative">
-            <img src="\${faviconUrl}" class="w-6 h-6 mr-3 rounded-md bg-white flex-shrink-0 object-contain shadow-sm" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjY2JjYmNiIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiPjwvY2lyY2xlPjxsGluZSB4MT0iMiIgeTE9IjEyIiB4Mj0iMjIiIHkyPSIxMiI+PC9saW5lPjxwYXRoIGQ9Ik0xMiAyYTE1LjMgMTUuMyAwIDAgMSA0IDEwIDE1LjMgMTUuMyAwIDAgMS00IDEwIDE1LjMgMTUuMyAwIDAgMS00LTEwIDE1LjMgMTUuMyAwIDAgMSA0LTEweiI+PC9wYXRoPjwvc3ZnPg=='" />
-            <span class="truncate text-[15px] font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400">\${safeTitle}</span>
-          </a>
-        \`;
+        return '<a href="' + safeUrl + '" target="_blank" title="' + tooltip + '" data-title="' + safeTitle.toLowerCase() + '" data-url="' + safeUrl.toLowerCase() + '"'
+             + ' class="bookmark-item flex items-center p-3 bg-white dark:bg-slate-800/80 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 border border-slate-100 dark:border-slate-700 no-underline text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 relative">'
+             + '<img src="' + faviconUrl + '" class="favicon-img w-6 h-6 mr-3 rounded-md flex-shrink-0 object-contain shadow-sm" loading="lazy" onerror="handleFaviconError(this)" />'
+             + '<span class="truncate text-[15px] font-medium">' + safeTitle + '</span>'
+             + '</a>';
       } 
       else if (children && children.length > 0) {
-        return \`
-          <div class="nested-folder col-span-full mt-2 mb-1">
-            <h3 class="text-sm font-bold text-slate-400 dark:text-slate-500 mb-3 ml-1 uppercase tracking-wider">\${escapeHtml(title)}</h3>
-            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-              \${children.map(renderNode).join('')}
-            </div>
-          </div>
-        \`;
+        return '<div class="nested-folder col-span-full mt-2 mb-1">'
+             + '<h3 class="text-sm font-bold text-slate-400 dark:text-slate-500 mb-3 ml-1 uppercase tracking-wider">' + escapeHtml(title) + '</h3>'
+             + '<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">'
+             + children.map(renderNode).join('')
+             + '</div></div>';
       }
       return '';
     }
 
     function renderBookmarks() {
-      const container = document.getElementById('bookmark-container');
-      const dSidebar = document.getElementById('desktop-sidebar');
-      const mSidebar = document.getElementById('mobile-sidebar');
+      var container = document.getElementById('bookmark-container');
+      var dSidebar = document.getElementById('desktop-sidebar');
+      var mSidebar = document.getElementById('mobile-sidebar');
       
-      let html = '';
-      let sidebarHtml = '';
-      let mobileSidebarHtml = '';
+      var html = '';
+      var sidebarHtml = '';
+      var mobileSidebarHtml = '';
 
-      bookmarksData.forEach((node, index) => {
-        const title = node.title || node.name;
-        const children = node.children || node.folder_children;
+      bookmarksData.forEach(function(node, index) {
+        var title = node.title || node.name;
+        var children = node.children || node.folder_children;
         if (children && children.length > 0) {
-          let originalName = title;
-          let folderName = i18n[currentLang]['folder_' + originalName] || originalName || i18n[currentLang].defaultFolder;
+          var originalName = title;
+          var folderName = i18n[currentLang]['folder_' + originalName] || originalName || i18n[currentLang].defaultFolder;
           
-          let icon = 'folder';
-          let iconColor = 'text-amber-500 dark:text-amber-400';
-          let iconClass = 'material-symbols-outlined';
+          var icon = 'folder';
+          var iconColor = 'text-amber-500 dark:text-amber-400';
+          var iconClass = 'material-symbols-outlined';
           
           if (originalName === 'ToolbarFolder') { icon = 'star'; iconColor = 'text-rose-500 dark:text-rose-400'; iconClass += ' filled'; }
           if (originalName === 'MenuFolder') { icon = 'menu_book'; iconColor = 'text-blue-500 dark:text-blue-400'; }
           if (originalName === 'UnfiledFolder') { icon = 'inbox'; iconColor = 'text-slate-500 dark:text-slate-400'; }
           if (originalName === 'MobileFolder') { icon = 'smartphone'; iconColor = 'text-emerald-500 dark:text-emerald-400'; }
 
-          let folderId = 'folder-' + index;
+          var folderId = 'folder-' + index;
 
-          sidebarHtml += \`
-            <a href="#\${folderId}" title="\${escapeHtml(folderName)}" class="flex items-center w-full gap-3 p-2 rounded-2xl text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm hover:text-blue-600 dark:hover:text-blue-400 transition-all mb-2 font-medium border border-transparent hover:border-slate-100 dark:hover:border-slate-600">
-              <span class="\${iconClass} \${iconColor} text-2xl flex-shrink-0 flex items-center justify-center w-6 h-6">\${icon}</span>
-              <span class="truncate opacity-0 group-hover:opacity-100 transition-opacity duration-300">\${escapeHtml(folderName)}</span>
-            </a>
-          \`;
+          sidebarHtml += '<a href="#' + folderId + '" title="' + escapeHtml(folderName) + '" class="flex items-center w-full gap-3 p-2 rounded-2xl text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm hover:text-blue-600 dark:hover:text-blue-400 transition-colors mb-2 font-medium border border-transparent hover:border-slate-100 dark:hover:border-slate-600">'
+              + '<span class="' + iconClass + ' ' + iconColor + ' text-2xl flex-shrink-0 flex items-center justify-center w-6 h-6">' + icon + '</span>'
+              + '<span class="truncate opacity-0 group-hover:opacity-100 transition-opacity duration-300">' + escapeHtml(folderName) + '</span>'
+              + '</a>';
 
-          mobileSidebarHtml += \`
-            <a href="#\${folderId}" class="flex-shrink-0 flex items-center gap-2 py-2.5 px-5 bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-200 shadow-sm whitespace-nowrap active:scale-95 transition-transform">
-              <span class="\${iconClass} \${iconColor} text-base">\${icon}</span>
-              \${escapeHtml(folderName)}
-            </a>
-          \`;
+          mobileSidebarHtml += '<a href="#' + folderId + '" class="flex-shrink-0 flex items-center gap-2 py-2.5 px-5 bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-200 shadow-sm whitespace-nowrap active:scale-95 transition-transform">'
+              + '<span class="' + iconClass + ' ' + iconColor + ' text-base">' + icon + '</span>'
+              + escapeHtml(folderName)
+              + '</a>';
 
-          html += \`
-            <div id="\${folderId}" class="folder-block bg-slate-100/50 dark:bg-slate-800/20 p-6 sm:p-8 rounded-3xl border border-slate-200/60 dark:border-slate-700/50 shadow-sm scroll-mt-24">
-              <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6 pb-4 border-b border-slate-200 dark:border-slate-700 flex items-center">
-                <span class="\${iconClass} mr-3 text-3xl \${iconColor}">\${icon}</span>
-                \${escapeHtml(folderName)}
-              </h2>
-              <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-                \${children.map(renderNode).join('')}
-              </div>
-            </div>
-          \`;
+          html += '<div id="' + folderId + '" class="folder-block bg-slate-100/50 dark:bg-slate-800/20 p-6 sm:p-8 rounded-3xl border border-slate-200/60 dark:border-slate-700/50 shadow-sm scroll-mt-24">'
+              + '<h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6 pb-4 border-b border-slate-200 dark:border-slate-700 flex items-center">'
+              + '<span class="' + iconClass + ' mr-3 text-3xl ' + iconColor + '">' + icon + '</span>'
+              + escapeHtml(folderName)
+              + '</h2>'
+              + '<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">'
+              + children.map(renderNode).join('')
+              + '</div></div>';
         }
       });
 
       container.innerHTML = html;
-      dSidebar.innerHTML = \`
-        <div class="flex items-center w-full mb-6 ml-2 overflow-hidden mt-2" title="\${i18n[currentLang].sidebarNav}">
-          <span class="material-symbols-outlined text-slate-400 dark:text-slate-500 text-xl flex-shrink-0">format_list_bulleted</span>
-          <span class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap" data-i18n="sidebarNav">\${i18n[currentLang].sidebarNav}</span>
-        </div>
-      \` + sidebarHtml;
+      dSidebar.innerHTML = '<div class="flex items-center w-full mb-6 ml-2 overflow-hidden mt-2" title="' + i18n[currentLang].sidebarNav + '">'
+          + '<span class="material-symbols-outlined text-slate-400 dark:text-slate-500 text-xl flex-shrink-0">format_list_bulleted</span>'
+          + '<span class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap" data-i18n="sidebarNav">' + i18n[currentLang].sidebarNav + '</span>'
+          + '</div>' + sidebarHtml;
       mSidebar.innerHTML = mobileSidebarHtml;
+
+      // Performance: use IntersectionObserver to fade in folder blocks
+      var folderBlocks = document.querySelectorAll('.folder-block');
+      if ('IntersectionObserver' in window) {
+        var observer = new IntersectionObserver(function(entries) {
+          entries.forEach(function(entry) {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('visible');
+              observer.unobserve(entry.target);
+            }
+          });
+        }, { rootMargin: '100px 0px', threshold: 0.01 });
+        folderBlocks.forEach(function(block) { observer.observe(block); });
+      } else {
+        // Fallback: show all immediately
+        folderBlocks.forEach(function(block) { block.classList.add('visible'); });
+      }
     }
 
     applyI18n();
 
-    const searchInput = document.getElementById('searchInput');
-    const searchForm = document.getElementById('searchForm');
-    const searchEngine = document.getElementById('searchEngine');
+    var searchInput = document.getElementById('searchInput');
+    var searchForm = document.getElementById('searchForm');
+    var searchEngine = document.getElementById('searchEngine');
 
-    searchInput.addEventListener('input', (e) => {
-      const q = e.target.value.toLowerCase();
-      
-      document.querySelectorAll('.bookmark-item').forEach(item => {
-        const t = item.getAttribute('data-title');
-        const u = item.getAttribute('data-url');
-        if (t.includes(q) || u.includes(q)) {
-          item.style.display = '';
-        } else {
-          item.style.display = 'none';
+    // Performance: debounce search input (150ms)
+    var searchTimer = null;
+    searchInput.addEventListener('input', function(e) {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(function() {
+        var q = e.target.value.toLowerCase();
+        
+        var allItems = document.querySelectorAll('.bookmark-item');
+        for (var i = 0; i < allItems.length; i++) {
+          var item = allItems[i];
+          var t = item.getAttribute('data-title');
+          var u = item.getAttribute('data-url');
+          if (t.indexOf(q) !== -1 || u.indexOf(q) !== -1) {
+            item.style.display = '';
+          } else {
+            item.style.display = 'none';
+          }
         }
-      });
 
-      document.querySelectorAll('.nested-folder, .folder-block').forEach(folder => {
-        const visibleItems = Array.from(folder.querySelectorAll('.bookmark-item')).filter(i => i.style.display !== 'none');
-        if (visibleItems.length === 0 && q !== '') {
-          folder.style.display = 'none';
-        } else {
-          folder.style.display = '';
+        var allFolders = document.querySelectorAll('.nested-folder, .folder-block');
+        for (var j = 0; j < allFolders.length; j++) {
+          var folder = allFolders[j];
+          var visibleItems = folder.querySelectorAll('.bookmark-item');
+          var hasVisible = false;
+          for (var k = 0; k < visibleItems.length; k++) {
+            if (visibleItems[k].style.display !== 'none') { hasVisible = true; break; }
+          }
+          if (!hasVisible && q !== '') {
+            folder.style.display = 'none';
+          } else {
+            folder.style.display = '';
+          }
         }
-      });
+      }, 150);
     });
 
-    searchForm.addEventListener('submit', (e) => {
+    searchForm.addEventListener('submit', function(e) {
       e.preventDefault();
-      const q = searchInput.value.trim();
+      var q = searchInput.value.trim();
       if (!q) return;
-      const engine = searchEngine.value;
-      let url = '';
+      var engine = searchEngine.value;
+      var url = '';
       if (engine === 'google') url = 'https://www.google.com/search?q=' + encodeURIComponent(q);
       if (engine === 'bing') url = 'https://www.bing.com/search?q=' + encodeURIComponent(q);
       if (engine === 'github') url = 'https://github.com/search?q=' + encodeURIComponent(q);
@@ -369,12 +434,12 @@ export default {
       `;
 
       return new Response(html, {
-        headers: { 
+        headers: {
           'Content-Type': 'text/html;charset=UTF-8',
           'Cache-Control': 'public, max-age=86400'
         }
       });
-      
+
     } catch (error) {
       return new Response("System Error: " + error.message, { status: 500 });
     }
