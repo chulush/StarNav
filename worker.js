@@ -126,7 +126,7 @@ export default {
           <option value="bing">Bing</option>
           <option value="github">GitHub</option>
         </select>
-        <div class="h-6 w-px bg-slate-300 dark:bg-slate-600 mx-3"></div>////////////
+        <div class="h-6 w-px bg-slate-300 dark:bg-slate-600 mx-3"></div>
         <input type="text" id="searchInput" class="flex-1 bg-transparent border-none text-slate-800 dark:text-slate-200 py-3 outline-none w-full text-sm sm:text-base" autocomplete="off" />
         <button type="submit" class="p-3 ml-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center transition-transform hover:scale-105 shadow-md">
           <span class="material-symbols-outlined font-bold">search</span>
