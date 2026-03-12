@@ -20,7 +20,6 @@ export default {
       }
 
       const gistData = await response.json();
-
       const fileData = Object.values(gistData.files)[0];
 
       if (!fileData) {
@@ -29,10 +28,8 @@ export default {
 
       const bookmarksObj = JSON.parse(fileData.content);
       const rootBookmarks = bookmarksObj.bookmarks || bookmarksObj.roots?.bookmark_bar?.children || [];
+      const bookmarksJsonStr = JSON.stringify(rootBookmarks).replace(/`/g, '\\`').replace(/\$\{/g, '\\${').replace(/\//g, '\\/');
 
-      const bookmarksJsonStr = JSON.stringify(rootBookmarks);
-
-      // Corrected SVG fallback (fixed broken base64: 'lGine' -> 'line')
       const FALLBACK_ICON = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOTRhM2I4IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiLz48bGluZSB4MT0iMiIgeTE9IjEyIiB4Mj0iMjIiIHkyPSIxMiIvPjxwYXRoIGQ9Ik0xMiAyYTE1LjMgMTUuMyAwIDAgMSA0IDEwIDE1LjMgMTUuMyAwIDAgMS00IDEwIDE1LjMgMTUuMyAwIDAgMS00LTEwIDE1LjMgMTUuMyAwIDAgMSA0LTEweiIvPjwvc3ZnPg==';
 
       const html = `
@@ -50,29 +47,27 @@ export default {
   <style>
     html { scroll-behavior: smooth; }
     body { transition: background-color 0.3s ease, color 0.3s ease; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-    
+
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     .dark ::-webkit-scrollbar-thumb { background: #475569; }
     ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-    
+
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    
+
     .glass-nav { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
 
-    /* Performance: use specific transitions instead of transition-all */
+    /* Use specific transitions instead of transition-all for better performance */
     .bookmark-item {
       transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, color 0.2s ease;
       will-change: transform;
       contain: layout style paint;
     }
-    .bookmark-item:hover {
-      transform: translateY(-4px);
-    }
+    .bookmark-item:hover { transform: translateY(-4px); }
 
-    /* Fade-in animation for lazy-loaded folder blocks */
+    /* Fade-in animation via IntersectionObserver */
     .folder-block {
       opacity: 0;
       transform: translateY(20px);
@@ -83,14 +78,11 @@ export default {
       transform: translateY(0);
     }
 
-    /* Favicon placeholder while loading */
     .favicon-img {
       background: #f1f5f9;
       transition: opacity 0.3s ease;
     }
-    .dark .favicon-img {
-      background: #334155;
-    }
+    .dark .favicon-img { background: #334155; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 min-h-screen pt-20 pb-10">
@@ -113,7 +105,7 @@ export default {
   </nav>
 
   <div class="max-w-[90rem] mx-auto mt-6 px-4 sm:px-6">
-    /header class="mb-10 text-center">
+    <header class="mb-10 text-center">
       <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight" data-i18n="headerTitle">My Private Bookmarks</h1>
       <p id="currentDate" class="mt-4 text-base md:text-lg font-bold text-blue-600 dark:text-blue-400 tracking-wide"></p>
       <p class="mt-2 text-sm md:text-base font-medium text-slate-500 dark:text-slate-400" data-i18n="headerSubtitle">Securely synced from Private Gist &middot; Zero Server Cost</p>
@@ -133,7 +125,7 @@ export default {
         </button>
       </form>
     </div>
-    
+
     <div class="flex flex-col lg:flex-row gap-8 items-start">
       <aside class="hidden lg:block shrink-0 sticky top-24 z-40">
         <div class="group bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl rounded-3xl border border-slate-200 dark:border-slate-700 p-3 shadow-sm w-16 hover:w-64 transition-[width] duration-300 overflow-hidden flex flex-col items-start" id="desktop-sidebar">
@@ -146,7 +138,7 @@ export default {
       <main id="bookmark-container" class="flex-1 w-full space-y-8">
       </main>
     </div>
-    
+
     <footer class="mt-24 pt-8 pb-4 border-t border-slate-200 dark:border-slate-800 text-center flex flex-col items-center justify-center">
       <span class="text-sm font-medium text-slate-400 dark:text-slate-500 mb-1">⚡ Powered by Cloudflare Workers</span>
       <span class="text-xs text-slate-400 dark:text-slate-600">Generated dynamically from GitHub Gist</span>
@@ -194,48 +186,56 @@ export default {
     };
 
     let currentLang = localStorage.getItem('lang') || (navigator.language.startsWith('zh') ? 'zh' : 'en');
-    
+
+    // --- Cached DOM references (avoid repeated querySelectorAll) ---
+    const domCache = {};
+    function getEl(id) {
+      return domCache[id] || (domCache[id] = document.getElementById(id));
+    }
+
+    // Cache i18n elements once after first render
+    let i18nEls = null;
     function applyI18n() {
-      document.querySelectorAll('[data-i18n]').forEach(function(el) {
+      if (!i18nEls) i18nEls = document.querySelectorAll('[data-i18n]');
+      const lang = i18n[currentLang];
+      i18nEls.forEach(function(el) {
         var key = el.getAttribute('data-i18n');
-        if (i18n[currentLang][key]) el.innerText = i18n[currentLang][key];
+        if (lang[key]) el.textContent = lang[key];
       });
-      document.getElementById('searchInput').placeholder = i18n[currentLang].searchPlaceholder;
-      document.getElementById('bttText').innerText = i18n[currentLang].btt;
+      getEl('searchInput').placeholder = lang.searchPlaceholder;
+      getEl('bttText').textContent = lang.btt;
       updateDate();
-      renderBookmarks();
     }
 
     function updateDate() {
-      var dateEl = document.getElementById('currentDate');
       var d = new Date();
-      if (currentLang === 'zh') {
-        dateEl.innerText = d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日';
-      } else {
-        dateEl.innerText = d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear();
-      }
+      getEl('currentDate').textContent = currentLang === 'zh'
+        ? d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日'
+        : d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear();
     }
 
     document.getElementById('langToggle').addEventListener('click', function() {
       currentLang = currentLang === 'zh' ? 'en' : 'zh';
       localStorage.setItem('lang', currentLang);
+      // Only update text labels, avoid full re-render of bookmarks
       applyI18n();
+      updateFolderLabels();
     });
 
-    var htmlElement = document.documentElement;
+    var htmlEl = document.documentElement;
     var themeIcon = document.getElementById('themeIcon');
     var currentTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    
+
     function applyTheme() {
       if (currentTheme === 'dark') {
-        htmlElement.classList.add('dark');
-        themeIcon.innerText = 'light_mode';
+        htmlEl.classList.add('dark');
+        themeIcon.textContent = 'light_mode';
       } else {
-        htmlElement.classList.remove('dark');
-        themeIcon.innerText = 'dark_mode';
+        htmlEl.classList.remove('dark');
+        themeIcon.textContent = 'dark_mode';
       }
     }
-    
+
     applyTheme();
     document.getElementById('themeToggle').addEventListener('click', function() {
       currentTheme = currentTheme === 'light' ? 'dark' : 'light';
@@ -243,12 +243,12 @@ export default {
       applyTheme();
     });
 
-    // Performance: throttle scroll handler with requestAnimationFrame
+    // Throttled scroll handler via requestAnimationFrame
     var scrollTicking = false;
     window.addEventListener('scroll', function() {
       if (!scrollTicking) {
         requestAnimationFrame(function() {
-          var btt = document.getElementById('backToTop');
+          var btt = getEl('backToTop');
           if (window.scrollY > 300) {
             btt.classList.remove('translate-y-20', 'opacity-0');
           } else {
@@ -258,105 +258,142 @@ export default {
         });
         scrollTicking = true;
       }
-    });
+    }, { passive: true });
 
-    function escapeHtml(unsafe) {
-      return (unsafe || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    function escapeHtml(s) {
+      return (s || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
 
-    // Performance: handle favicon errors without retriggering — set fallback once
     function handleFaviconError(img) {
-      img.onerror = null; // prevent infinite error loop
+      img.onerror = null;
       img.src = FALLBACK_ICON;
     }
 
+    // Build HTML for a single bookmark link node using array-join (faster than string concat)
     function renderNode(node) {
       var url = node.url || node.url_string;
       var title = node.title || node.name;
       var children = node.children || node.folder_children;
-      
+
       if (url) {
         var hostname = 'unknown';
         try { hostname = new URL(url).hostname; } catch(e) {}
         var faviconUrl = "https://www.google.com/s2/favicons?domain=" + hostname + "&sz=32";
         var safeTitle = escapeHtml(title);
         var safeUrl = escapeHtml(url);
-        
-        var tooltip = safeTitle + "\\n" + safeUrl;
-        
-        return '<a href="' + safeUrl + '" target="_blank" title="' + tooltip + '" data-title="' + safeTitle.toLowerCase() + '" data-url="' + safeUrl.toLowerCase() + '"'
-             + ' class="bookmark-item flex items-center p-3 bg-white dark:bg-slate-800/80 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 border border-slate-100 dark:border-slate-700 no-underline text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 relative">'
-             + '<img src="' + faviconUrl + '" class="favicon-img w-6 h-6 mr-3 rounded-md flex-shrink-0 object-contain shadow-sm" loading="lazy" onerror="handleFaviconError(this)" />'
-             + '<span class="truncate text-[15px] font-medium">' + safeTitle + '</span>'
-             + '</a>';
-      } 
-      else if (children && children.length > 0) {
+        var parts = [
+          '<a href="', safeUrl,
+          '" target="_blank" title="', safeTitle, '\\n', safeUrl,
+          '" data-title="', safeTitle.toLowerCase(),
+          '" data-url="', safeUrl.toLowerCase(),
+          '" class="bookmark-item flex items-center p-3 bg-white dark:bg-slate-800/80 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 border border-slate-100 dark:border-slate-700 no-underline text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 relative">',
+          '<img src="', faviconUrl, '" class="favicon-img w-6 h-6 mr-3 rounded-md flex-shrink-0 object-contain shadow-sm" loading="lazy" onerror="handleFaviconError(this)" />',
+          '<span class="truncate text-[15px] font-medium">', safeTitle, '</span>',
+          '</a>'
+        ];
+        return parts.join('');
+      }
+
+      if (children && children.length > 0) {
+        var inner = [];
+        for (var i = 0; i < children.length; i++) inner.push(renderNode(children[i]));
         return '<div class="nested-folder col-span-full mt-2 mb-1">'
-             + '<h3 class="text-sm font-bold text-slate-400 dark:text-slate-500 mb-3 ml-1 uppercase tracking-wider">' + escapeHtml(title) + '</h3>'
-             + '<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">'
-             + children.map(renderNode).join('')
-             + '</div></div>';
+          + '<h3 class="text-sm font-bold text-slate-400 dark:text-slate-500 mb-3 ml-1 uppercase tracking-wider">' + escapeHtml(title) + '</h3>'
+          + '<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">'
+          + inner.join('')
+          + '</div></div>';
       }
       return '';
     }
 
+    // Metadata for each top-level folder (used by renderBookmarks and updateFolderLabels)
+    var folderMeta = [];
+
+    // Cached search references — populated once after first render
+    var cachedItems = null;        // flat array of {el, title, url}
+    var cachedFolders = null;      // array of {el, itemEls[]}
+
+    function getFolderIcon(name) {
+      switch (name) {
+        case 'ToolbarFolder': return { icon: 'star',       color: 'text-rose-500 dark:text-rose-400',    cls: 'material-symbols-outlined filled' };
+        case 'MenuFolder':    return { icon: 'menu_book',  color: 'text-blue-500 dark:text-blue-400',    cls: 'material-symbols-outlined' };
+        case 'UnfiledFolder': return { icon: 'inbox',      color: 'text-slate-500 dark:text-slate-400',  cls: 'material-symbols-outlined' };
+        case 'MobileFolder':  return { icon: 'smartphone', color: 'text-emerald-500 dark:text-emerald-400', cls: 'material-symbols-outlined' };
+        default:              return { icon: 'folder',     color: 'text-amber-500 dark:text-amber-400',  cls: 'material-symbols-outlined' };
+      }
+    }
+
     function renderBookmarks() {
-      var container = document.getElementById('bookmark-container');
-      var dSidebar = document.getElementById('desktop-sidebar');
-      var mSidebar = document.getElementById('mobile-sidebar');
-      
-      var html = '';
-      var sidebarHtml = '';
-      var mobileSidebarHtml = '';
+      var container = getEl('bookmark-container');
+      var dSidebar = getEl('desktop-sidebar');
+      var mSidebar = getEl('mobile-sidebar');
+
+      var htmlParts = [];
+      var sParts = [];   // desktop sidebar
+      var mParts = [];   // mobile sidebar
+      folderMeta = [];
+
+      var lang = i18n[currentLang];
 
       bookmarksData.forEach(function(node, index) {
         var title = node.title || node.name;
         var children = node.children || node.folder_children;
-        if (children && children.length > 0) {
-          var originalName = title;
-          var folderName = i18n[currentLang]['folder_' + originalName] || originalName || i18n[currentLang].defaultFolder;
-          
-          var icon = 'folder';
-          var iconColor = 'text-amber-500 dark:text-amber-400';
-          var iconClass = 'material-symbols-outlined';
-          
-          if (originalName === 'ToolbarFolder') { icon = 'star'; iconColor = 'text-rose-500 dark:text-rose-400'; iconClass += ' filled'; }
-          if (originalName === 'MenuFolder') { icon = 'menu_book'; iconColor = 'text-blue-500 dark:text-blue-400'; }
-          if (originalName === 'UnfiledFolder') { icon = 'inbox'; iconColor = 'text-slate-500 dark:text-slate-400'; }
-          if (originalName === 'MobileFolder') { icon = 'smartphone'; iconColor = 'text-emerald-500 dark:text-emerald-400'; }
+        if (!children || children.length === 0) return;
 
-          var folderId = 'folder-' + index;
+        var originalName = title;
+        var folderName = lang['folder_' + originalName] || originalName || lang.defaultFolder;
+        var fi = getFolderIcon(originalName);
+        var folderId = 'folder-' + index;
 
-          sidebarHtml += '<a href="#' + folderId + '" title="' + escapeHtml(folderName) + '" class="flex items-center w-full gap-3 p-2 rounded-2xl text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm hover:text-blue-600 dark:hover:text-blue-400 transition-colors mb-2 font-medium border border-transparent hover:border-slate-100 dark:hover:border-slate-600">'
-              + '<span class="' + iconClass + ' ' + iconColor + ' text-2xl flex-shrink-0 flex items-center justify-center w-6 h-6">' + icon + '</span>'
-              + '<span class="truncate opacity-0 group-hover:opacity-100 transition-opacity duration-300">' + escapeHtml(folderName) + '</span>'
-              + '</a>';
+        folderMeta.push({ id: folderId, originalName: originalName });
 
-          mobileSidebarHtml += '<a href="#' + folderId + '" class="flex-shrink-0 flex items-center gap-2 py-2.5 px-5 bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-200 shadow-sm whitespace-nowrap active:scale-95 transition-transform">'
-              + '<span class="' + iconClass + ' ' + iconColor + ' text-base">' + icon + '</span>'
-              + escapeHtml(folderName)
-              + '</a>';
+        sParts.push(
+          '<a href="#', folderId, '" data-folder-label="', originalName,
+          '" title="', escapeHtml(folderName),
+          '" class="flex items-center w-full gap-3 p-2 rounded-2xl text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm hover:text-blue-600 dark:hover:text-blue-400 transition-colors mb-2 font-medium border border-transparent hover:border-slate-100 dark:hover:border-slate-600">',
+          '<span class="', fi.cls, ' ', fi.color, ' text-2xl flex-shrink-0 flex items-center justify-center w-6 h-6">', fi.icon, '</span>',
+          '<span class="truncate opacity-0 group-hover:opacity-100 transition-opacity duration-300" data-folder-text="', originalName, '">', escapeHtml(folderName), '</span>',
+          '</a>'
+        );
 
-          html += '<div id="' + folderId + '" class="folder-block bg-slate-100/50 dark:bg-slate-800/20 p-6 sm:p-8 rounded-3xl border border-slate-200/60 dark:border-slate-700/50 shadow-sm scroll-mt-24">'
-              + '<h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6 pb-4 border-b border-slate-200 dark:border-slate-700 flex items-center">'
-              + '<span class="' + iconClass + ' mr-3 text-3xl ' + iconColor + '">' + icon + '</span>'
-              + escapeHtml(folderName)
-              + '</h2>'
-              + '<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">'
-              + children.map(renderNode).join('')
-              + '</div></div>';
-        }
+        mParts.push(
+          '<a href="#', folderId,
+          '" class="flex-shrink-0 flex items-center gap-2 py-2.5 px-5 bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-200 shadow-sm whitespace-nowrap active:scale-95 transition-transform">',
+          '<span class="', fi.cls, ' ', fi.color, ' text-base">', fi.icon, '</span>',
+          '<span data-folder-text="', originalName, '">', escapeHtml(folderName), '</span>',
+          '</a>'
+        );
+
+        var childrenHtml = [];
+        for (var i = 0; i < children.length; i++) childrenHtml.push(renderNode(children[i]));
+
+        htmlParts.push(
+          '<div id="', folderId, '" class="folder-block bg-slate-100/50 dark:bg-slate-800/20 p-6 sm:p-8 rounded-3xl border border-slate-200/60 dark:border-slate-700/50 shadow-sm scroll-mt-24">',
+          '<h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6 pb-4 border-b border-slate-200 dark:border-slate-700 flex items-center">',
+          '<span class="', fi.cls, ' mr-3 text-3xl ', fi.color, '">', fi.icon, '</span>',
+          '<span data-folder-text="', originalName, '">', escapeHtml(folderName), '</span>',
+          '</h2>',
+          '<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">',
+          childrenHtml.join(''),
+          '</div></div>'
+        );
       });
 
-      container.innerHTML = html;
-      dSidebar.innerHTML = '<div class="flex items-center w-full mb-6 ml-2 overflow-hidden mt-2" title="' + i18n[currentLang].sidebarNav + '">'
-          + '<span class="material-symbols-outlined text-slate-400 dark:text-slate-500 text-xl flex-shrink-0">format_list_bulleted</span>'
-          + '<span class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap" data-i18n="sidebarNav">' + i18n[currentLang].sidebarNav + '</span>'
-          + '</div>' + sidebarHtml;
-      mSidebar.innerHTML = mobileSidebarHtml;
+      container.innerHTML = htmlParts.join('');
+      dSidebar.innerHTML =
+        '<div class="flex items-center w-full mb-6 ml-2 overflow-hidden mt-2" title="' + lang.sidebarNav + '">'
+        + '<span class="material-symbols-outlined text-slate-400 dark:text-slate-500 text-xl flex-shrink-0">format_list_bulleted</span>'
+        + '<span class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">' + lang.sidebarNav + '</span>'
+        + '</div>'
+        + sParts.join('');
+      mSidebar.innerHTML = mParts.join('');
 
-      // Performance: use IntersectionObserver to fade in folder blocks
-      var folderBlocks = document.querySelectorAll('.folder-block');
+      // Reset search caches after re-render
+      cachedItems = null;
+      cachedFolders = null;
+
+      // IntersectionObserver for fade-in (created once per render)
+      var folderBlocks = container.querySelectorAll('.folder-block');
       if ('IntersectionObserver' in window) {
         var observer = new IntersectionObserver(function(entries) {
           entries.forEach(function(entry) {
@@ -368,49 +405,83 @@ export default {
         }, { rootMargin: '100px 0px', threshold: 0.01 });
         folderBlocks.forEach(function(block) { observer.observe(block); });
       } else {
-        // Fallback: show all immediately
         folderBlocks.forEach(function(block) { block.classList.add('visible'); });
       }
     }
 
+    // Update only folder name labels after a language switch (no DOM rebuild)
+    function updateFolderLabels() {
+      var lang = i18n[currentLang];
+      document.querySelectorAll('[data-folder-text]').forEach(function(el) {
+        var name = el.getAttribute('data-folder-text');
+        el.textContent = lang['folder_' + name] || name || lang.defaultFolder;
+      });
+      // Update sidebar link titles
+      document.querySelectorAll('[data-folder-label]').forEach(function(el) {
+        var name = el.getAttribute('data-folder-label');
+        var label = lang['folder_' + name] || name || lang.defaultFolder;
+        el.title = label;
+      });
+    }
+
+    // Build search cache lazily on first search use
+    function buildSearchCache() {
+      var allItemEls = document.querySelectorAll('.bookmark-item');
+      cachedItems = [];
+      for (var i = 0; i < allItemEls.length; i++) {
+        cachedItems.push({
+          el: allItemEls[i],
+          title: allItemEls[i].getAttribute('data-title'),
+          url: allItemEls[i].getAttribute('data-url')
+        });
+      }
+
+      // Map each folder/nested-folder to its contained bookmark elements
+      var allFolderEls = document.querySelectorAll('.nested-folder, .folder-block');
+      cachedFolders = [];
+      for (var j = 0; j < allFolderEls.length; j++) {
+        var folderEl = allFolderEls[j];
+        var items = folderEl.querySelectorAll('.bookmark-item');
+        cachedFolders.push({ el: folderEl, items: items });
+      }
+    }
+
+    // Initial render
+    renderBookmarks();
     applyI18n();
 
-    var searchInput = document.getElementById('searchInput');
-    var searchForm = document.getElementById('searchForm');
-    var searchEngine = document.getElementById('searchEngine');
+    // Search
+    var searchInput = getEl('searchInput');
+    var searchForm = getEl('searchForm');
+    var searchEngine = getEl('searchEngine');
 
-    // Performance: debounce search input (150ms)
     var searchTimer = null;
     searchInput.addEventListener('input', function(e) {
       clearTimeout(searchTimer);
       searchTimer = setTimeout(function() {
         var q = e.target.value.toLowerCase();
-        
-        var allItems = document.querySelectorAll('.bookmark-item');
-        for (var i = 0; i < allItems.length; i++) {
-          var item = allItems[i];
-          var t = item.getAttribute('data-title');
-          var u = item.getAttribute('data-url');
-          if (t.indexOf(q) !== -1 || u.indexOf(q) !== -1) {
-            item.style.display = '';
-          } else {
-            item.style.display = 'none';
-          }
+
+        // Build cache on first search interaction
+        if (!cachedItems) buildSearchCache();
+
+        // Show/hide bookmark items
+        for (var i = 0; i < cachedItems.length; i++) {
+          var item = cachedItems[i];
+          item.el.style.display = (!q || item.title.indexOf(q) !== -1 || item.url.indexOf(q) !== -1) ? '' : 'none';
         }
 
-        var allFolders = document.querySelectorAll('.nested-folder, .folder-block');
-        for (var j = 0; j < allFolders.length; j++) {
-          var folder = allFolders[j];
-          var visibleItems = folder.querySelectorAll('.bookmark-item');
+        // Show/hide folders based on whether they still have visible children
+        for (var j = 0; j < cachedFolders.length; j++) {
+          var folder = cachedFolders[j];
+          if (!q) {
+            folder.el.style.display = '';
+            continue;
+          }
           var hasVisible = false;
-          for (var k = 0; k < visibleItems.length; k++) {
-            if (visibleItems[k].style.display !== 'none') { hasVisible = true; break; }
+          for (var k = 0; k < folder.items.length; k++) {
+            if (folder.items[k].style.display !== 'none') { hasVisible = true; break; }
           }
-          if (!hasVisible && q !== '') {
-            folder.style.display = 'none';
-          } else {
-            folder.style.display = '';
-          }
+          folder.el.style.display = hasVisible ? '' : 'none';
         }
       }, 150);
     });
@@ -420,12 +491,12 @@ export default {
       var q = searchInput.value.trim();
       if (!q) return;
       var engine = searchEngine.value;
-      var url = '';
-      if (engine === 'google') url = 'https://www.google.com/search?q=' + encodeURIComponent(q);
-      if (engine === 'bing') url = 'https://www.bing.com/search?q=' + encodeURIComponent(q);
-      if (engine === 'github') url = 'https://github.com/search?q=' + encodeURIComponent(q);
-      
-      window.open(url, '_blank');
+      var urls = {
+        google: 'https://www.google.com/search?q=',
+        bing:   'https://www.bing.com/search?q=',
+        github: 'https://github.com/search?q='
+      };
+      window.open((urls[engine] || urls.google) + encodeURIComponent(q), '_blank');
     });
 
   </script>
