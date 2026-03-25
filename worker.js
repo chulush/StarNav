@@ -119,7 +119,12 @@ export default {
           <option value="github">GitHub</option>
         </select>
         <div class="h-6 w-px bg-slate-300 dark:bg-slate-600 mx-3"></div>
-        <input type="text" id="searchInput" class="flex-1 bg-transparent border-none text-slate-800 dark:text-slate-200 py-3 outline-none w-full text-sm sm:text-base" autocomplete="off" />
+        <div class="flex-1 relative flex items-center w-full">
+          <input type="text" id="searchInput" class="w-full bg-transparent border-none text-slate-800 dark:text-slate-200 py-3 pr-10 outline-none text-sm sm:text-base" autocomplete="off" />
+          <button type="button" id="clearSearch" style="display: none;" class="absolute right-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 items-center justify-center transition-colors" title="Clear">
+            <span class="material-symbols-outlined text-xl">close</span>
+          </button>
+        </div>
         <button type="submit" class="p-3 ml-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center transition-transform hover:scale-105 shadow-md">
           <span class="material-symbols-outlined font-bold">search</span>
         </button>
@@ -209,9 +214,12 @@ export default {
 
     function updateDate() {
       var d = new Date();
+      var timeStr = d.getHours().toString().padStart(2, '0') + ':' + 
+                    d.getMinutes().toString().padStart(2, '0') + ':' + 
+                    d.getSeconds().toString().padStart(2, '0');
       getEl('currentDate').textContent = currentLang === 'zh'
-        ? d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日'
-        : d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear();
+        ? d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + timeStr
+        : d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + timeStr;
     }
 
     document.getElementById('langToggle').addEventListener('click', function() {
@@ -449,42 +457,60 @@ export default {
     // Initial render
     renderBookmarks();
     applyI18n();
+    setInterval(updateDate, 1000);
 
     // Search
     var searchInput = getEl('searchInput');
     var searchForm = getEl('searchForm');
     var searchEngine = getEl('searchEngine');
+    var clearSearch = getEl('clearSearch');
 
     var searchTimer = null;
+
+    function performSearch(q) {
+      if (clearSearch) {
+        clearSearch.style.display = q ? 'flex' : 'none';
+      }
+
+      // Build cache on first search interaction
+      if (!cachedItems) buildSearchCache();
+
+      // Show/hide bookmark items
+      for (var i = 0; i < cachedItems.length; i++) {
+        var item = cachedItems[i];
+        item.el.style.display = (!q || item.title.indexOf(q) !== -1 || item.url.indexOf(q) !== -1) ? '' : 'none';
+      }
+
+      // Show/hide folders based on whether they still have visible children
+      for (var j = 0; j < cachedFolders.length; j++) {
+        var folder = cachedFolders[j];
+        if (!q) {
+          folder.el.style.display = '';
+          continue;
+        }
+        var hasVisible = false;
+        for (var k = 0; k < folder.items.length; k++) {
+          if (folder.items[k].style.display !== 'none') { hasVisible = true; break; }
+        }
+        folder.el.style.display = hasVisible ? '' : 'none';
+      }
+    }
+
     searchInput.addEventListener('input', function(e) {
       clearTimeout(searchTimer);
       searchTimer = setTimeout(function() {
         var q = e.target.value.toLowerCase();
-
-        // Build cache on first search interaction
-        if (!cachedItems) buildSearchCache();
-
-        // Show/hide bookmark items
-        for (var i = 0; i < cachedItems.length; i++) {
-          var item = cachedItems[i];
-          item.el.style.display = (!q || item.title.indexOf(q) !== -1 || item.url.indexOf(q) !== -1) ? '' : 'none';
-        }
-
-        // Show/hide folders based on whether they still have visible children
-        for (var j = 0; j < cachedFolders.length; j++) {
-          var folder = cachedFolders[j];
-          if (!q) {
-            folder.el.style.display = '';
-            continue;
-          }
-          var hasVisible = false;
-          for (var k = 0; k < folder.items.length; k++) {
-            if (folder.items[k].style.display !== 'none') { hasVisible = true; break; }
-          }
-          folder.el.style.display = hasVisible ? '' : 'none';
-        }
+        performSearch(q);
       }, 150);
     });
+
+    if (clearSearch) {
+      clearSearch.addEventListener('click', function() {
+        searchInput.value = '';
+        searchInput.focus();
+        performSearch('');
+      });
+    }
 
     searchForm.addEventListener('submit', function(e) {
       e.preventDefault();
